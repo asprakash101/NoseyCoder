@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "NoseyCoder",
   "version": "1.0.0",
-  "description": "GitHub On-Page Complexity & Maintainability Analyzer — Cyclomatic Complexity, Halstead Metrics, Heatmaps, Linter & Refactoring Suggestions",
+  "description": "NoseyCoder — GitHub On-Page Complexity & Maintainability Analyzer. Cyclomatic Complexity, Halstead Metrics, Heatmaps, Linter & Refactoring Suggestions",
   "permissions": [
     "activeTab",
     "storage",
