@@ -1,5 +1,5 @@
 /**
- * CodeScope Content Script
+ * NoseyCoder Content Script
  * Runs on GitHub file pages — injects heatmap, badges, fork button, and analysis panel
  */
 
@@ -111,7 +111,7 @@
             <path d="M18 20V4"/>
             <path d="M6 20v-4"/>
           </svg>
-          <span>CodeScope</span>
+          <span>NoseyCoder</span>
         </div>
         <button id="codescope-panel-close" class="codescope-btn-icon" title="Close">&times;</button>
       </div>
@@ -272,7 +272,7 @@
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
         <path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5zM8 12.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/>
       </svg>
-      Fork via CodeScope
+      Fork via NoseyCoder
     `;
 
     btn.addEventListener('click', () => {
@@ -291,7 +291,7 @@
             btn.style.color = '#f85149';
           }
           setTimeout(() => {
-            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5zM8 12.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg> Fork via CodeScope`;
+            btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5zM8 12.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/></svg> Fork via NoseyCoder`;
             btn.style.color = '';
           }, 3000);
         });
@@ -307,7 +307,7 @@
 
     const toggle = document.createElement('button');
     toggle.id = 'codescope-toggle';
-    toggle.title = 'Toggle CodeScope Analysis';
+    toggle.title = 'Toggle NoseyCoder Analysis';
     toggle.innerHTML = `
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M12 20V10"/>
@@ -349,7 +349,7 @@
     if (!isFilePage()) return;
 
     const filename = getFileName();
-    const language = CodeScopeAnalyzer.detectLanguage(filename);
+    const language = NoseyCoderAnalyzer.detectLanguage(filename);
     if (language === 'unknown') return;
 
     // Wait for code to be rendered
@@ -371,7 +371,7 @@
   }
 
   function runAnalysis(code, filename) {
-    analysisResults = CodeScopeAnalyzer.analyzeCode(code, filename);
+    analysisResults = NoseyCoderAnalyzer.analyzeCode(code, filename);
 
     // Send results to popup
     chrome.runtime.sendMessage({
