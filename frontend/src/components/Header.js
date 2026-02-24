@@ -10,7 +10,7 @@ export default function Header({ activeView, setActiveView }) {
           onClick={() => setActiveView("landing")}
         >
           <BarChart3 size={20} className="brand-icon" />
-          <span className="brand-name">CodeScope</span>
+          <span className="brand-name">NoseyCoder</span>
         </button>
 
         <nav className="header-nav" data-testid="header-nav">
