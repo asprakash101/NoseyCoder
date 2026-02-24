@@ -247,7 +247,7 @@ ${languageSteps}
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: codescope-reports
+          name: noseycoder-reports
           path: |
             *-report.json
             *-report.txt
