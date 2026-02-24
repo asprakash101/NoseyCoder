@@ -1,5 +1,5 @@
 /**
- * CodeScope Popup Script
+ * NoseyCoder Popup Script
  * Handles: Tab navigation, displaying analysis results, auth UI, workflow generation
  */
 
