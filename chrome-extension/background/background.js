@@ -1,5 +1,5 @@
 /**
- * CodeScope Background Service Worker
+ * NoseyCoder Background Service Worker
  * Handles: OAuth, GitHub API, Fork operations, GitHub Actions, token storage, message routing
  */
 
@@ -89,7 +89,7 @@ async function handleLogin(sendResponse) {
     }
 
     // Mock login response for demo
-    authUser = { login: 'codescope-user', avatar_url: '', name: 'CodeScope User' };
+    authUser = { login: 'codescope-user', avatar_url: '', name: 'NoseyCoder User' };
     await chrome.storage.local.set({ github_user: authUser });
     sendResponse({ success: true, user: authUser, mocked: true });
   } catch (err) {
@@ -195,7 +195,7 @@ async function checkForkStatus(owner, repo, sendResponse) {
 // ─── GitHub Actions Workflow Generator ───
 function generateWorkflow(config, sendResponse) {
   const {
-    name = 'CodeScope Analysis',
+    name = 'NoseyCoder Analysis',
     language = 'javascript',
     triggers = ['push', 'pull_request'],
     branches = ['main', 'develop']
