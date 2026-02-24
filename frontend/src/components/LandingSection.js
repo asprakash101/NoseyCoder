@@ -40,7 +40,7 @@ export default function LandingSection({ onTryDemo }) {
             <span className="gradient-text">Directly on GitHub</span>
           </h1>
           <p className="hero-subtitle" data-testid="hero-subtitle">
-            CodeScope performs in-browser static analysis on GitHub file pages.
+            NoseyCoder performs in-browser static analysis on GitHub file pages.
             Cyclomatic complexity, maintainability index, heatmaps, linter
             suggestions, and refactoring patterns — all without leaving your browser.
           </p>
@@ -178,7 +178,7 @@ export default function LandingSection({ onTryDemo }) {
           <div className="install-step">
             <span className="step-num">1</span>
             <h3>Download Extension</h3>
-            <p>Download the CodeScope Chrome extension package</p>
+            <p>Download the NoseyCoder Chrome extension package</p>
           </div>
           <div className="install-step">
             <span className="step-num">2</span>
@@ -198,7 +198,7 @@ export default function LandingSection({ onTryDemo }) {
         <div className="footer-content">
           <div className="footer-brand">
             <BarChart3 size={20} />
-            <span>CodeScope</span>
+            <span>NoseyCoder</span>
           </div>
           <p>Client-side static analysis for GitHub. Zero backend, total privacy.</p>
         </div>
