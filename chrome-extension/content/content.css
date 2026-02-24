@@ -1,0 +1,373 @@
+/* CodeScope Content Script Styles — GitHub Overlay */
+
+/* ─── Floating Toggle Button ─── */
+#codescope-toggle {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a1b26 0%, #24283b 100%);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  color: #58a6ff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(88, 166, 255, 0.15);
+  transition: all 0.2s ease;
+}
+#codescope-toggle:hover {
+  transform: scale(1.1);
+  border-color: #58a6ff;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 30px rgba(88, 166, 255, 0.3);
+}
+
+/* ─── Complexity Badges ─── */
+.codescope-complexity-badge {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: #fff;
+  z-index: 10;
+  opacity: 0.9;
+  pointer-events: none;
+  line-height: 18px;
+}
+
+/* ─── Action Button (Fork) ─── */
+.codescope-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  background: rgba(88, 166, 255, 0.08);
+  color: #58a6ff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+.codescope-action-btn:hover {
+  background: rgba(88, 166, 255, 0.16);
+  border-color: #58a6ff;
+}
+
+/* ─── Analysis Side Panel ─── */
+#codescope-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100vh;
+  z-index: 100000;
+  background: #0d1117;
+  border-left: 1px solid #21262d;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  color: #c9d1d9;
+  animation: codescope-slide-in 0.25s ease-out;
+}
+
+@keyframes codescope-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.codescope-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #21262d;
+  background: #161b22;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.codescope-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.codescope-btn-icon {
+  background: none;
+  border: none;
+  color: #8b949e;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.codescope-btn-icon:hover { color: #f0f6fc; }
+
+.codescope-panel-body {
+  padding: 0;
+}
+
+/* ─── Sections ─── */
+.codescope-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid #21262d;
+}
+
+.codescope-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b949e;
+  margin: 0 0 12px 0;
+}
+
+/* ─── Metrics Grid ─── */
+.codescope-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.codescope-metric {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.codescope-metric-label {
+  font-size: 11px;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.codescope-metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #f0f6fc;
+}
+
+/* ─── MI Bar ─── */
+.codescope-mi-bar {
+  margin-top: 12px;
+}
+
+.codescope-mi-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #8b949e;
+}
+
+.codescope-progress-track {
+  height: 6px;
+  background: #21262d;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.codescope-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* ─── Halstead Summary ─── */
+.codescope-halstead-summary {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: #8b949e;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ─── Function List ─── */
+.codescope-fn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.codescope-fn-item {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.codescope-fn-item:hover {
+  border-color: #58a6ff;
+}
+
+.codescope-fn-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.codescope-fn-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.codescope-fn-cc {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.codescope-fn-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #8b949e;
+}
+
+/* ─── Linter Issues ─── */
+.codescope-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.codescope-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.codescope-issue:hover { background: #161b22; }
+
+.codescope-issue-critical { border-left: 3px solid #f85149; }
+.codescope-issue-warning { border-left: 3px solid #d29922; }
+.codescope-issue-info { border-left: 3px solid #58a6ff; }
+
+.codescope-issue-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+.codescope-issue-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.codescope-issue-rule {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #8b949e;
+}
+
+.codescope-issue-msg {
+  font-size: 12px;
+  color: #c9d1d9;
+  line-height: 1.4;
+}
+
+.codescope-issue-line {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #8b949e;
+  flex-shrink: 0;
+}
+
+/* ─── Refactoring ─── */
+.codescope-refactor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codescope-refactor-item {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.codescope-refactor-item:hover { border-color: #58a6ff; }
+
+.codescope-refactor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.codescope-refactor-priority {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.codescope-refactor-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f0f6fc;
+}
+
+.codescope-refactor-desc {
+  font-size: 12px;
+  color: #8b949e;
+  line-height: 1.4;
+  margin: 6px 0 8px 0;
+}
+
+.codescope-refactor-pattern {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #58a6ff;
+  background: rgba(88, 166, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ─── Empty State ─── */
+.codescope-empty {
+  font-size: 13px;
+  color: #8b949e;
+  font-style: italic;
+}
+.codescope-ok {
+  color: #3fb950;
+  font-style: normal;
+}
+
+/* ─── Scrollbar ─── */
+#codescope-panel::-webkit-scrollbar { width: 6px; }
+#codescope-panel::-webkit-scrollbar-track { background: transparent; }
+#codescope-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+#codescope-panel::-webkit-scrollbar-thumb:hover { background: #484f58; }
