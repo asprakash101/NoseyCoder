@@ -89,7 +89,7 @@ async function handleLogin(sendResponse) {
     }
 
     // Mock login response for demo
-    authUser = { login: 'codescope-user', avatar_url: '', name: 'NoseyCoder User' };
+    authUser = { login: 'noseycoder-user', avatar_url: '', name: 'NoseyCoder User' };
     await chrome.storage.local.set({ github_user: authUser });
     sendResponse({ success: true, user: authUser, mocked: true });
   } catch (err) {
