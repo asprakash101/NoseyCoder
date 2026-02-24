@@ -467,7 +467,7 @@ def generate_refactor_suggestions(functions: list, language: str) -> list:
 # ─── API Routes ───
 @api_router.get("/")
 async def root():
-    return {"message": "CodeScope API"}
+    return {"message": "NoseyCoder API"}
 
 @api_router.post("/analyze")
 async def analyze_endpoint(req: AnalyzeRequest):
@@ -497,7 +497,7 @@ async def get_history():
 
 @api_router.get("/health")
 async def health():
-    return {"status": "ok", "service": "CodeScope API"}
+    return {"status": "ok", "service": "NoseyCoder API"}
 
 # Include router
 app.include_router(api_router)
