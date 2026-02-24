@@ -1,11 +1,11 @@
 /**
- * CodeScope Analyzer Core
+ * NoseyCoder Analyzer Core
  * Shared static analysis engine for JavaScript/TypeScript and Python.
  * Computes: Cyclomatic Complexity, Halstead Metrics, Maintainability Index
  * Provides: Linter suggestions, Refactoring recommendations
  */
 
-const CodeScopeAnalyzer = (() => {
+const NoseyCoderAnalyzer = (() => {
 
   // ─── Language Detection ───
   function detectLanguage(filename) {
@@ -593,5 +593,5 @@ const CodeScopeAnalyzer = (() => {
 })();
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = CodeScopeAnalyzer;
+  module.exports = NoseyCoderAnalyzer;
 }
