@@ -69,17 +69,17 @@
 
         const alpha = 0.08 + region.intensity * 0.18;
         line.style.backgroundColor = hexToRGBA(region.color, alpha);
-        line.classList.add('codescope-heatmap-line');
+        line.classList.add('noseycoder-heatmap-line');
 
         // Add complexity badge on first line of function
         if (i === region.startLine - 1) {
           const badge = document.createElement('span');
-          badge.className = 'codescope-complexity-badge';
+          badge.className = 'noseycoder-complexity-badge';
           badge.style.backgroundColor = region.color;
           badge.textContent = `CC: ${region.complexity}`;
           badge.title = `Cyclomatic Complexity: ${region.complexity} — ${results.functions.find(f => f.name === region.name)?.complexityLevel?.label || ''}`;
 
-          const existing = line.querySelector('.codescope-complexity-badge');
+          const existing = line.querySelector('.noseycoder-complexity-badge');
           if (existing) existing.remove();
 
           line.style.position = 'relative';
@@ -90,11 +90,11 @@
   }
 
   function removeHeatmap() {
-    document.querySelectorAll('.codescope-heatmap-line').forEach(el => {
+    document.querySelectorAll('.noseycoder-heatmap-line').forEach(el => {
       el.style.backgroundColor = '';
-      el.classList.remove('codescope-heatmap-line');
+      el.classList.remove('noseycoder-heatmap-line');
     });
-    document.querySelectorAll('.codescope-complexity-badge').forEach(el => el.remove());
+    document.querySelectorAll('.noseycoder-complexity-badge').forEach(el => el.remove());
   }
 
   // ─── Side Panel ───
@@ -102,10 +102,10 @@
     removePanel();
 
     const panel = document.createElement('div');
-    panel.id = 'codescope-panel';
+    panel.id = 'noseycoder-panel';
     panel.innerHTML = `
-      <div class="codescope-panel-header">
-        <div class="codescope-panel-title">
+      <div class="noseycoder-panel-header">
+        <div class="noseycoder-panel-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2">
             <path d="M12 20V10"/>
             <path d="M18 20V4"/>
@@ -113,9 +113,9 @@
           </svg>
           <span>NoseyCoder</span>
         </div>
-        <button id="codescope-panel-close" class="codescope-btn-icon" title="Close">&times;</button>
+        <button id="noseycoder-panel-close" class="noseycoder-btn-icon" title="Close">&times;</button>
       </div>
-      <div class="codescope-panel-body">
+      <div class="noseycoder-panel-body">
         ${renderSummarySection(results.summary)}
         ${renderFunctionsSection(results.functions)}
         ${renderLinterSection(results.linterIssues)}
@@ -126,7 +126,7 @@
     document.body.appendChild(panel);
     panelVisible = true;
 
-    document.getElementById('codescope-panel-close').addEventListener('click', () => {
+    document.getElementById('noseycoder-panel-close').addEventListener('click', () => {
       removePanel();
     });
 
@@ -140,43 +140,43 @@
   }
 
   function removePanel() {
-    const existing = document.getElementById('codescope-panel');
+    const existing = document.getElementById('noseycoder-panel');
     if (existing) existing.remove();
     panelVisible = false;
   }
 
   function renderSummarySection(summary) {
     return `
-      <div class="codescope-section">
-        <h3 class="codescope-section-title">File Summary</h3>
-        <div class="codescope-metrics-grid">
-          <div class="codescope-metric">
-            <span class="codescope-metric-label">LOC</span>
-            <span class="codescope-metric-value">${summary.loc}</span>
+      <div class="noseycoder-section">
+        <h3 class="noseycoder-section-title">File Summary</h3>
+        <div class="noseycoder-metrics-grid">
+          <div class="noseycoder-metric">
+            <span class="noseycoder-metric-label">LOC</span>
+            <span class="noseycoder-metric-value">${summary.loc}</span>
           </div>
-          <div class="codescope-metric">
-            <span class="codescope-metric-label">SLOC</span>
-            <span class="codescope-metric-value">${summary.sloc}</span>
+          <div class="noseycoder-metric">
+            <span class="noseycoder-metric-label">SLOC</span>
+            <span class="noseycoder-metric-value">${summary.sloc}</span>
           </div>
-          <div class="codescope-metric">
-            <span class="codescope-metric-label">Functions</span>
-            <span class="codescope-metric-value">${summary.functionCount}</span>
+          <div class="noseycoder-metric">
+            <span class="noseycoder-metric-label">Functions</span>
+            <span class="noseycoder-metric-value">${summary.functionCount}</span>
           </div>
-          <div class="codescope-metric">
-            <span class="codescope-metric-label">Complexity</span>
-            <span class="codescope-metric-value" style="color:${summary.complexityLevel.color}">${summary.cyclomaticComplexity}</span>
+          <div class="noseycoder-metric">
+            <span class="noseycoder-metric-label">Complexity</span>
+            <span class="noseycoder-metric-value" style="color:${summary.complexityLevel.color}">${summary.cyclomaticComplexity}</span>
           </div>
         </div>
-        <div class="codescope-mi-bar">
-          <div class="codescope-mi-label">
+        <div class="noseycoder-mi-bar">
+          <div class="noseycoder-mi-label">
             <span>Maintainability Index</span>
             <span style="color:${summary.maintainabilityLevel.color}">${summary.maintainabilityIndex} — ${summary.maintainabilityLevel.label}</span>
           </div>
-          <div class="codescope-progress-track">
-            <div class="codescope-progress-fill" style="width:${summary.maintainabilityIndex}%;background:${summary.maintainabilityLevel.color}"></div>
+          <div class="noseycoder-progress-track">
+            <div class="noseycoder-progress-fill" style="width:${summary.maintainabilityIndex}%;background:${summary.maintainabilityLevel.color}"></div>
           </div>
         </div>
-        <div class="codescope-halstead-summary">
+        <div class="noseycoder-halstead-summary">
           <span>Vol: ${summary.halstead.volume}</span>
           <span>Diff: ${summary.halstead.difficulty}</span>
           <span>Bugs: ${summary.halstead.bugs}</span>
@@ -186,19 +186,19 @@
   }
 
   function renderFunctionsSection(functions) {
-    if (!functions.length) return '<div class="codescope-section"><h3 class="codescope-section-title">Functions</h3><p class="codescope-empty">No functions detected</p></div>';
+    if (!functions.length) return '<div class="noseycoder-section"><h3 class="noseycoder-section-title">Functions</h3><p class="noseycoder-empty">No functions detected</p></div>';
     const sorted = [...functions].sort((a, b) => b.cyclomaticComplexity - a.cyclomaticComplexity);
     return `
-      <div class="codescope-section">
-        <h3 class="codescope-section-title">Functions (${functions.length})</h3>
-        <div class="codescope-fn-list">
+      <div class="noseycoder-section">
+        <h3 class="noseycoder-section-title">Functions (${functions.length})</h3>
+        <div class="noseycoder-fn-list">
           ${sorted.map(fn => `
-            <div class="codescope-fn-item" data-goto-line="${fn.startLine}">
-              <div class="codescope-fn-header">
-                <span class="codescope-fn-name">${fn.name}</span>
-                <span class="codescope-fn-cc" style="background:${fn.complexityLevel.color}20;color:${fn.complexityLevel.color}">CC:${fn.cyclomaticComplexity}</span>
+            <div class="noseycoder-fn-item" data-goto-line="${fn.startLine}">
+              <div class="noseycoder-fn-header">
+                <span class="noseycoder-fn-name">${fn.name}</span>
+                <span class="noseycoder-fn-cc" style="background:${fn.complexityLevel.color}20;color:${fn.complexityLevel.color}">CC:${fn.cyclomaticComplexity}</span>
               </div>
-              <div class="codescope-fn-meta">
+              <div class="noseycoder-fn-meta">
                 <span>L${fn.startLine}-${fn.endLine}</span>
                 <span>${fn.loc} LOC</span>
                 <span>MI: ${fn.maintainabilityIndex}</span>
@@ -212,20 +212,20 @@
   }
 
   function renderLinterSection(issues) {
-    if (!issues.length) return '<div class="codescope-section"><h3 class="codescope-section-title">Linter</h3><p class="codescope-empty codescope-ok">No issues found</p></div>';
+    if (!issues.length) return '<div class="noseycoder-section"><h3 class="noseycoder-section-title">Linter</h3><p class="noseycoder-empty noseycoder-ok">No issues found</p></div>';
     const icons = { critical: '\u26d4', warning: '\u26a0\ufe0f', info: '\u2139\ufe0f' };
     return `
-      <div class="codescope-section">
-        <h3 class="codescope-section-title">Linter Issues (${issues.length})</h3>
-        <div class="codescope-issue-list">
+      <div class="noseycoder-section">
+        <h3 class="noseycoder-section-title">Linter Issues (${issues.length})</h3>
+        <div class="noseycoder-issue-list">
           ${issues.map(issue => `
-            <div class="codescope-issue codescope-issue-${issue.severity}" data-goto-line="${issue.line}">
-              <span class="codescope-issue-icon">${icons[issue.severity] || ''}</span>
-              <div class="codescope-issue-content">
-                <span class="codescope-issue-rule">${issue.rule}</span>
-                <span class="codescope-issue-msg">${issue.message}</span>
+            <div class="noseycoder-issue noseycoder-issue-${issue.severity}" data-goto-line="${issue.line}">
+              <span class="noseycoder-issue-icon">${icons[issue.severity] || ''}</span>
+              <div class="noseycoder-issue-content">
+                <span class="noseycoder-issue-rule">${issue.rule}</span>
+                <span class="noseycoder-issue-msg">${issue.message}</span>
               </div>
-              <span class="codescope-issue-line">L${issue.line}</span>
+              <span class="noseycoder-issue-line">L${issue.line}</span>
             </div>
           `).join('')}
         </div>
@@ -237,17 +237,17 @@
     if (!suggestions.length) return '';
     const priorityColors = { high: '#f85149', medium: '#d29922', low: '#3fb950' };
     return `
-      <div class="codescope-section">
-        <h3 class="codescope-section-title">Refactoring Suggestions (${suggestions.length})</h3>
-        <div class="codescope-refactor-list">
+      <div class="noseycoder-section">
+        <h3 class="noseycoder-section-title">Refactoring Suggestions (${suggestions.length})</h3>
+        <div class="noseycoder-refactor-list">
           ${suggestions.map(s => `
-            <div class="codescope-refactor-item" data-goto-line="${s.line}">
-              <div class="codescope-refactor-header">
-                <span class="codescope-refactor-priority" style="color:${priorityColors[s.priority]}">${s.priority.toUpperCase()}</span>
-                <span class="codescope-refactor-title">${s.title}</span>
+            <div class="noseycoder-refactor-item" data-goto-line="${s.line}">
+              <div class="noseycoder-refactor-header">
+                <span class="noseycoder-refactor-priority" style="color:${priorityColors[s.priority]}">${s.priority.toUpperCase()}</span>
+                <span class="noseycoder-refactor-title">${s.title}</span>
               </div>
-              <p class="codescope-refactor-desc">${s.description}</p>
-              <span class="codescope-refactor-pattern">${s.pattern}</span>
+              <p class="noseycoder-refactor-desc">${s.description}</p>
+              <span class="noseycoder-refactor-pattern">${s.pattern}</span>
             </div>
           `).join('')}
         </div>
@@ -257,7 +257,7 @@
 
   // ─── Fork Button Injector ───
   function injectForkButton() {
-    if (document.getElementById('codescope-fork-btn')) return;
+    if (document.getElementById('noseycoder-fork-btn')) return;
 
     const actionBar = document.querySelector('.file-actions')
       || document.querySelector('[class*="react-blob-header-edit-and-raw-actions"]')
@@ -266,8 +266,8 @@
     if (!actionBar) return;
 
     const btn = document.createElement('button');
-    btn.id = 'codescope-fork-btn';
-    btn.className = 'codescope-action-btn';
+    btn.id = 'noseycoder-fork-btn';
+    btn.className = 'noseycoder-action-btn';
     btn.innerHTML = `
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
         <path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5zM8 12.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5z"/>
@@ -303,10 +303,10 @@
 
   // ─── Floating Toggle Button ───
   function injectToggleButton() {
-    if (document.getElementById('codescope-toggle')) return;
+    if (document.getElementById('noseycoder-toggle')) return;
 
     const toggle = document.createElement('button');
-    toggle.id = 'codescope-toggle';
+    toggle.id = 'noseycoder-toggle';
     toggle.title = 'Toggle NoseyCoder Analysis';
     toggle.innerHTML = `
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
