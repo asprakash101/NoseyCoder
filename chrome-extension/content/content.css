@@ -41,6 +41,12 @@
   opacity: 0.9;
   pointer-events: none;
   line-height: 18px;
+  white-space: nowrap;
+}
+
+/* Heatmap line — works for both div and table-based GitHub layouts */
+.noseycoder-heatmap-line {
+  transition: background-color 0.3s ease;
 }
 
 /* ─── Action Button (Fork) ─── */
