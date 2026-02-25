@@ -186,7 +186,7 @@ function renderDashboard(data) {
   document.getElementById('fn-count').textContent = data.functions.length;
   const sorted = [...data.functions].sort((a, b) => b.cyclomaticComplexity - a.cyclomaticComplexity);
   document.getElementById('fn-list').innerHTML = sorted.map(fn => `
-    <div class="fn-item">
+    <div class="fn-item" data-goto-line="${fn.startLine}" title="Click to scroll to line ${fn.startLine}">
       <div>
         <span class="fn-name">${fn.name}</span>
         <span class="fn-meta">L${fn.startLine} | ${fn.loc} LOC | ${fn.paramCount}p</span>
@@ -194,6 +194,20 @@ function renderDashboard(data) {
       <span class="fn-cc-badge" style="background:${fn.complexityLevel.color}20;color:${fn.complexityLevel.color}">CC:${fn.cyclomaticComplexity}</span>
     </div>
   `).join('');
+
+  // Click-to-scroll: clicking a function item scrolls the GitHub page to that line
+  document.querySelectorAll('#fn-list .fn-item[data-goto-line]').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => {
+      const line = parseInt(el.dataset.gotoLine);
+      if (!line) return;
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { type: 'SCROLL_TO_LINE', line });
+        }
+      });
+    });
+  });
 
   // Linter
   renderLinter(data.linterIssues);
