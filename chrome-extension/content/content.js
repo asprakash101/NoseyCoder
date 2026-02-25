@@ -1,49 +1,119 @@
 /**
  * NoseyCoder Content Script
  * Runs on GitHub file pages — injects heatmap, badges, fork button, and analysis panel
+ * Updated for GitHub's 2025 React-based file viewer
  */
 
 (() => {
   let analysisResults = null;
   let heatmapEnabled = true;
   let panelVisible = false;
+  let initAttempts = 0;
+  const MAX_INIT_ATTEMPTS = 30;
 
   // ─── GitHub DOM Helpers ───
   function isFilePage() {
-    return document.querySelector('[data-testid="raw-button"]') !== null
-      || document.querySelector('.blob-code') !== null
-      || document.querySelector('.react-code-lines') !== null;
+    // URL-based detection: /owner/repo/blob/branch/path/to/file
+    const path = window.location.pathname;
+    if (/^\/[^/]+\/[^/]+\/blob\//.test(path)) return true;
+
+    // DOM-based fallback
+    if (document.querySelector('[data-testid="raw-button"]')) return true;
+    if (document.querySelector('[data-testid="react-blob"]')) return true;
+    if (document.querySelector('.react-blob-print-hide')) return true;
+    if (document.querySelector('.blob-code')) return true;
+    if (document.querySelector('.react-code-text')) return true;
+    if (document.querySelector('.react-code-lines')) return true;
+    if (document.querySelector('.react-code-line-contents')) return true;
+
+    return false;
   }
 
   function getFileName() {
-    const breadcrumb = document.querySelector('[data-testid="breadcrumbs-filename"]')
-      || document.querySelector('.final-path')
-      || document.querySelector('.js-path-segment.final-path');
-    if (breadcrumb) return breadcrumb.textContent.trim();
+    // Try multiple breadcrumb selectors for different GitHub UI versions
+    const selectors = [
+      '[data-testid="breadcrumbs-filename"]',
+      '[data-testid="breadcrumbs"] li:last-child',
+      '.react-directory-filename-column a',
+      '.final-path',
+      '.js-path-segment.final-path',
+      'h2[data-testid] .Link--primary',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) return el.textContent.trim();
+    }
 
+    // URL-based extraction (most reliable)
     const path = window.location.pathname;
     const parts = path.split('/');
     return parts[parts.length - 1] || '';
   }
 
   function getCodeContent() {
-    // Try modern GitHub (react-based)
-    const codeLines = document.querySelectorAll('.react-code-line .react-file-line');
-    if (codeLines.length > 0) {
-      return Array.from(codeLines).map(l => l.textContent).join('\n');
+    // Strategy 1: GitHub 2025 React-based viewer (.react-code-text)
+    const reactCodeText = document.querySelectorAll('.react-code-text');
+    if (reactCodeText.length > 0) {
+      return Array.from(reactCodeText).map(el => el.textContent).join('\n');
     }
 
-    // Try classic GitHub
+    // Strategy 2: GitHub React viewer (data-testid based)
+    const testIdLines = document.querySelectorAll('[data-testid="react-code-text"]');
+    if (testIdLines.length > 0) {
+      return Array.from(testIdLines).map(el => el.textContent).join('\n');
+    }
+
+    // Strategy 3: React code line contents
+    const reactLineContents = document.querySelectorAll('.react-code-line-contents');
+    if (reactLineContents.length > 0) {
+      return Array.from(reactLineContents).map(el => el.textContent).join('\n');
+    }
+
+    // Strategy 4: React file line
+    const reactFileLines = document.querySelectorAll('.react-file-line');
+    if (reactFileLines.length > 0) {
+      return Array.from(reactFileLines).map(el => el.textContent).join('\n');
+    }
+
+    // Strategy 5: Classic GitHub blob view
     const blobLines = document.querySelectorAll('.blob-code-inner');
     if (blobLines.length > 0) {
-      return Array.from(blobLines).map(l => l.textContent).join('\n');
+      return Array.from(blobLines).map(el => el.textContent).join('\n');
     }
 
-    // Try raw content
+    // Strategy 6: Any code element inside the blob wrapper
+    const blobWrapper = document.querySelector('.blob-wrapper, [data-testid="react-blob"]');
+    if (blobWrapper) {
+      const codeEl = blobWrapper.querySelector('pre, code, table');
+      if (codeEl) return codeEl.textContent;
+    }
+
+    // Strategy 7: data.highlight (raw view)
     const rawContent = document.querySelector('.data.highlight');
     if (rawContent) return rawContent.textContent;
 
+    // Strategy 8: Try getting text from any code-like container inside main content
+    const codeContainer = document.querySelector('[data-hpc] .react-code-lines, .react-blob-print-hide');
+    if (codeContainer) return codeContainer.textContent;
+
     return null;
+  }
+
+  function getCodeLineElements() {
+    // Returns the DOM elements representing individual code lines for heatmap rendering
+    const selectors = [
+      '.react-code-text',
+      '[data-testid="react-code-text"]',
+      '.react-code-line-contents',
+      '.react-file-line',
+      '.blob-code',
+      '.blob-code-inner',
+    ];
+    for (const sel of selectors) {
+      const els = document.querySelectorAll(sel);
+      if (els.length > 0) return els;
+    }
+    return document.querySelectorAll('.react-code-line, .blob-code');
   }
 
   function getRepoInfo() {
@@ -59,7 +129,7 @@
     removeHeatmap();
     if (!heatmapEnabled || !results || !results.heatmap) return;
 
-    const codeLines = document.querySelectorAll('.react-code-line, .blob-code');
+    const codeLines = getCodeLineElements();
     if (codeLines.length === 0) return;
 
     results.heatmap.forEach(region => {
@@ -67,9 +137,11 @@
         const line = codeLines[i];
         if (!line) continue;
 
+        // Apply heatmap background to the line or its parent row
+        const targetEl = line.closest('tr') || line.closest('.react-code-line') || line;
         const alpha = 0.08 + region.intensity * 0.18;
-        line.style.backgroundColor = hexToRGBA(region.color, alpha);
-        line.classList.add('noseycoder-heatmap-line');
+        targetEl.style.backgroundColor = hexToRGBA(region.color, alpha);
+        targetEl.classList.add('noseycoder-heatmap-line');
 
         // Add complexity badge on first line of function
         if (i === region.startLine - 1) {
@@ -79,11 +151,11 @@
           badge.textContent = `CC: ${region.complexity}`;
           badge.title = `Cyclomatic Complexity: ${region.complexity} — ${results.functions.find(f => f.name === region.name)?.complexityLevel?.label || ''}`;
 
-          const existing = line.querySelector('.noseycoder-complexity-badge');
+          const existing = targetEl.querySelector('.noseycoder-complexity-badge');
           if (existing) existing.remove();
 
-          line.style.position = 'relative';
-          line.appendChild(badge);
+          targetEl.style.position = 'relative';
+          targetEl.appendChild(badge);
         }
       }
     });
@@ -259,9 +331,12 @@
   function injectForkButton() {
     if (document.getElementById('noseycoder-fork-btn')) return;
 
-    const actionBar = document.querySelector('.file-actions')
-      || document.querySelector('[class*="react-blob-header-edit-and-raw-actions"]')
-      || document.querySelector('.Box-header .d-flex');
+    // Try multiple possible action bar selectors
+    const actionBar = document.querySelector('[class*="react-blob-header-edit-and-raw-actions"]')
+      || document.querySelector('[data-testid="raw-button"]')?.parentElement
+      || document.querySelector('.file-actions')
+      || document.querySelector('.Box-header .d-flex')
+      || document.querySelector('.react-blob-header-edit-and-raw-actions');
 
     if (!actionBar) return;
 
@@ -336,11 +411,12 @@
   }
 
   function scrollToLine(lineNumber) {
-    const lines = document.querySelectorAll('.react-code-line, .blob-code');
+    const lines = getCodeLineElements();
     if (lines[lineNumber - 1]) {
       lines[lineNumber - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
-      lines[lineNumber - 1].style.outline = '2px solid #58a6ff';
-      setTimeout(() => { lines[lineNumber - 1].style.outline = ''; }, 2000);
+      const target = lines[lineNumber - 1].closest('tr') || lines[lineNumber - 1].closest('.react-code-line') || lines[lineNumber - 1];
+      target.style.outline = '2px solid #58a6ff';
+      setTimeout(() => { target.style.outline = ''; }, 2000);
     }
   }
 
@@ -352,21 +428,20 @@
     const language = NoseyCoderAnalyzer.detectLanguage(filename);
     if (language === 'unknown') return;
 
-    // Wait for code to be rendered
-    const observer = new MutationObserver(() => {
-      const code = getCodeContent();
-      if (code) {
-        observer.disconnect();
-        runAnalysis(code, filename);
-      }
-    });
+    tryExtractAndAnalyze(filename);
+  }
 
+  function tryExtractAndAnalyze(filename) {
     const code = getCodeContent();
-    if (code) {
+    if (code && code.trim().length > 0) {
       runAnalysis(code, filename);
-    } else {
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => observer.disconnect(), 10000);
+      return;
+    }
+
+    // GitHub loads code async — retry with increasing delay
+    initAttempts++;
+    if (initAttempts < MAX_INIT_ATTEMPTS) {
+      setTimeout(() => tryExtractAndAnalyze(filename), 500);
     }
   }
 
@@ -374,10 +449,14 @@
     analysisResults = NoseyCoderAnalyzer.analyzeCode(code, filename);
 
     // Send results to popup
-    chrome.runtime.sendMessage({
-      type: 'ANALYSIS_RESULTS',
-      data: analysisResults
-    });
+    try {
+      chrome.runtime.sendMessage({
+        type: 'ANALYSIS_RESULTS',
+        data: analysisResults
+      });
+    } catch (e) {
+      // Extension context may be invalidated on navigation
+    }
 
     // Render heatmap
     renderHeatmap(analysisResults);
@@ -393,6 +472,22 @@
       if (analysisResults) {
         sendResponse(analysisResults);
       } else {
+        // Try to analyze now if we haven't yet
+        if (isFilePage()) {
+          const code = getCodeContent();
+          const filename = getFileName();
+          if (code && code.trim().length > 0) {
+            const language = NoseyCoderAnalyzer.detectLanguage(filename);
+            if (language !== 'unknown') {
+              analysisResults = NoseyCoderAnalyzer.analyzeCode(code, filename);
+              sendResponse(analysisResults);
+              renderHeatmap(analysisResults);
+              injectToggleButton();
+              injectForkButton();
+              return;
+            }
+          }
+        }
         sendResponse(null);
       }
     }
@@ -427,14 +522,25 @@
       removeHeatmap();
       removePanel();
       analysisResults = null;
-      setTimeout(init, 1000);
+      initAttempts = 0;
+      // Remove toggle and fork button on navigation
+      const toggle = document.getElementById('noseycoder-toggle');
+      if (toggle) toggle.remove();
+      const forkBtn = document.getElementById('noseycoder-fork-btn');
+      if (forkBtn) forkBtn.remove();
+
+      setTimeout(init, 1500);
     }
   }).observe(document.body, { childList: true, subtree: true });
 
-  // Start
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  // Start — with a slight delay to let GitHub's React app render
+  function startInit() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => setTimeout(init, 1000));
+    } else {
+      setTimeout(init, 1000);
+    }
   }
+
+  startInit();
 })();
