@@ -19,6 +19,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(88, 166, 255, 0.15);
   transition: all 0.2s ease;
 }
+
 #noseycoder-toggle:hover {
   transform: scale(1.1);
   border-color: #58a6ff;
@@ -28,9 +29,7 @@
 /* ─── Complexity Badges ─── */
 .noseycoder-complexity-badge {
   position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 12px;
   padding: 1px 8px;
   border-radius: 10px;
   font-size: 11px;
@@ -38,10 +37,15 @@
   font-family: 'JetBrains Mono', monospace;
   color: #fff;
   z-index: 10;
-  opacity: 0.9;
+  opacity: 0.92;
   pointer-events: none;
   line-height: 18px;
   white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+body.noseycoder-panel-open .noseycoder-complexity-badge {
+  right: 392px;
 }
 
 /* Heatmap line — works for both div and table-based GitHub layouts */
@@ -65,6 +69,7 @@
   transition: all 0.15s ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
+
 .noseycoder-action-btn:hover {
   background: rgba(88, 166, 255, 0.16);
   border-color: #58a6ff;
@@ -87,9 +92,21 @@
   animation: noseycoder-slide-in 0.25s ease-out;
 }
 
+body.noseycoder-panel-open {
+  padding-right: 380px;
+  transition: padding-right 0.2s ease;
+}
+
 @keyframes noseycoder-slide-in {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .noseycoder-panel-header {
@@ -123,7 +140,10 @@
   line-height: 1;
   transition: color 0.15s;
 }
-.noseycoder-btn-icon:hover { color: #f0f6fc; }
+
+.noseycoder-btn-icon:hover {
+  color: #f0f6fc;
+}
 
 .noseycoder-panel-body {
   padding: 0;
@@ -226,6 +246,7 @@
   cursor: pointer;
   transition: border-color 0.15s;
 }
+
 .noseycoder-fn-item:hover {
   border-color: #58a6ff;
 }
@@ -275,13 +296,28 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.noseycoder-issue:hover { background: #161b22; }
 
-.noseycoder-issue-critical { border-left: 3px solid #f85149; }
-.noseycoder-issue-warning { border-left: 3px solid #d29922; }
-.noseycoder-issue-info { border-left: 3px solid #58a6ff; }
+.noseycoder-issue:hover {
+  background: #161b22;
+}
 
-.noseycoder-issue-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.noseycoder-issue-critical {
+  border-left: 3px solid #f85149;
+}
+
+.noseycoder-issue-warning {
+  border-left: 3px solid #d29922;
+}
+
+.noseycoder-issue-info {
+  border-left: 3px solid #58a6ff;
+}
+
+.noseycoder-issue-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
 
 .noseycoder-issue-content {
   display: flex;
@@ -325,7 +361,10 @@
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.noseycoder-refactor-item:hover { border-color: #58a6ff; }
+
+.noseycoder-refactor-item:hover {
+  border-color: #58a6ff;
+}
 
 .noseycoder-refactor-header {
   display: flex;
@@ -367,13 +406,26 @@
   color: #8b949e;
   font-style: italic;
 }
+
 .noseycoder-ok {
   color: #3fb950;
   font-style: normal;
 }
 
 /* ─── Scrollbar ─── */
-#noseycoder-panel::-webkit-scrollbar { width: 6px; }
-#noseycoder-panel::-webkit-scrollbar-track { background: transparent; }
-#noseycoder-panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
-#noseycoder-panel::-webkit-scrollbar-thumb:hover { background: #484f58; }
+#noseycoder-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+#noseycoder-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#noseycoder-panel::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 3px;
+}
+
+#noseycoder-panel::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}

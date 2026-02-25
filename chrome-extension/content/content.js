@@ -25,6 +25,8 @@
     if (document.querySelector('.react-code-text')) return true;
     if (document.querySelector('.react-code-lines')) return true;
     if (document.querySelector('.react-code-line-contents')) return true;
+    if (document.querySelector('[data-testid="code-viewer"]')) return true;
+    if (document.querySelector('[data-line-number]')) return true;
 
     return false;
   }
@@ -51,6 +53,14 @@
   }
 
   function getCodeContent() {
+    const lineElements = getCodeLineElements();
+    if (lineElements.length > 0) {
+      const lines = lineElements.map(getLineText);
+      if (lines.some(line => line.length > 0)) {
+        return lines.join('\n');
+      }
+    }
+
     // Strategy 1: GitHub 2025 React-based viewer (.react-code-text)
     const reactCodeText = document.querySelectorAll('.react-code-text');
     if (reactCodeText.length > 0) {
@@ -99,21 +109,39 @@
     return null;
   }
 
+  function getLineText(el) {
+    if (!el) return '';
+    return (el.innerText || el.textContent || '').replace(/\r/g, '').replace(/\n$/, '');
+  }
+
   function getCodeLineElements() {
-    // Returns the DOM elements representing individual code lines for heatmap rendering
+    // Returns the DOM elements representing individual code lines for heatmap rendering.
+    // IMPORTANT: .react-code-text appears TWICE per line (line-number + code-content),
+    // so we scope it to the code-content column only to avoid double-counting.
     const selectors = [
-      '.react-code-text',
-      '[data-testid="react-code-text"]',
+      '.react-code-line-contents .react-code-text',
+      '.react-code-line-contents [data-testid="react-code-text"]',
       '.react-code-line-contents',
       '.react-file-line',
-      '.blob-code',
-      '.blob-code-inner',
+      'td.blob-code',
+      'td.blob-code-inner',
+      '[data-testid="code-viewer"] [data-line-number] + td',
+      '[data-line-number] + td',
     ];
     for (const sel of selectors) {
-      const els = document.querySelectorAll(sel);
+      const els = Array.from(document.querySelectorAll(sel));
       if (els.length > 0) return els;
     }
-    return document.querySelectorAll('.react-code-line, .blob-code');
+
+    const lineNumberCells = Array.from(document.querySelectorAll('[data-line-number]'));
+    if (lineNumberCells.length > 0) {
+      const codeCells = lineNumberCells
+        .map(cell => cell.nextElementSibling)
+        .filter(Boolean);
+      if (codeCells.length > 0) return codeCells;
+    }
+
+    return Array.from(document.querySelectorAll('.react-code-line, .blob-code'));
   }
 
   function getRepoInfo() {
@@ -138,10 +166,10 @@
         if (!line) continue;
 
         // Apply heatmap background to the line or its parent row
-        const targetEl = line.closest('tr') || line.closest('.react-code-line') || line;
+        const bgTarget = line.closest('tr') || line.closest('.react-code-line') || line;
         const alpha = 0.08 + region.intensity * 0.18;
-        targetEl.style.backgroundColor = hexToRGBA(region.color, alpha);
-        targetEl.classList.add('noseycoder-heatmap-line');
+        bgTarget.style.backgroundColor = hexToRGBA(region.color, alpha);
+        bgTarget.classList.add('noseycoder-heatmap-line');
 
         // Add complexity badge on first line of function
         if (i === region.startLine - 1) {
@@ -151,11 +179,15 @@
           badge.textContent = `CC: ${region.complexity}`;
           badge.title = `Cyclomatic Complexity: ${region.complexity} — ${results.functions.find(f => f.name === region.name)?.complexityLevel?.label || ''}`;
 
-          const existing = targetEl.querySelector('.noseycoder-complexity-badge');
-          if (existing) existing.remove();
+          // Position badge at rightmost edge, vertically aligned with this code line
+          const rect = line.getBoundingClientRect();
+          badge.style.top = `${rect.top + window.scrollY + rect.height / 2 - 10}px`;
+          badge.dataset.ncLine = String(region.startLine);
 
-          targetEl.style.position = 'relative';
-          targetEl.appendChild(badge);
+          // Remove any existing badge for this line
+          document.querySelectorAll(`.noseycoder-complexity-badge[data-nc-line="${region.startLine}"]`).forEach(el => el.remove());
+
+          document.body.appendChild(badge);
         }
       }
     });
@@ -196,6 +228,7 @@
     `;
 
     document.body.appendChild(panel);
+    document.body.classList.add('noseycoder-panel-open');
     panelVisible = true;
 
     document.getElementById('noseycoder-panel-close').addEventListener('click', () => {
@@ -214,6 +247,7 @@
   function removePanel() {
     const existing = document.getElementById('noseycoder-panel');
     if (existing) existing.remove();
+    document.body.classList.remove('noseycoder-panel-open');
     panelVisible = false;
   }
 
@@ -431,6 +465,20 @@
     tryExtractAndAnalyze(filename);
   }
 
+  function resetAndReinit(delay = 1000) {
+    removeHeatmap();
+    removePanel();
+    analysisResults = null;
+    initAttempts = 0;
+
+    const toggle = document.getElementById('noseycoder-toggle');
+    if (toggle) toggle.remove();
+    const forkBtn = document.getElementById('noseycoder-fork-btn');
+    if (forkBtn) forkBtn.remove();
+
+    setTimeout(init, delay);
+  }
+
   function tryExtractAndAnalyze(filename) {
     const code = getCodeContent();
     if (code && code.trim().length > 0) {
@@ -511,6 +559,9 @@
       const filename = getFileName();
       if (code) runAnalysis(code, filename);
     }
+    if (msg.type === 'SCROLL_TO_LINE') {
+      scrollToLine(msg.line);
+    }
     return true;
   });
 
@@ -519,19 +570,19 @@
   new MutationObserver(() => {
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
-      removeHeatmap();
-      removePanel();
-      analysisResults = null;
-      initAttempts = 0;
-      // Remove toggle and fork button on navigation
-      const toggle = document.getElementById('noseycoder-toggle');
-      if (toggle) toggle.remove();
-      const forkBtn = document.getElementById('noseycoder-fork-btn');
-      if (forkBtn) forkBtn.remove();
-
-      setTimeout(init, 1500);
+      resetAndReinit(1500);
     }
   }).observe(document.body, { childList: true, subtree: true });
+
+  document.addEventListener('pjax:end', () => {
+    lastUrl = window.location.href;
+    resetAndReinit(800);
+  });
+
+  window.addEventListener('popstate', () => {
+    lastUrl = window.location.href;
+    resetAndReinit(800);
+  });
 
   // Start — with a slight delay to let GitHub's React app render
   function startInit() {
