@@ -108,15 +108,20 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── Functions ───
-function loadAnalysis() {
-  // First try getting from active tab
+function loadAnalysis(retryCount = 0) {
+  // First try getting from active tab's content script
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]) {
       chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_ANALYSIS' }, (response) => {
         if (chrome.runtime.lastError || !response) {
-          // Try session storage
+          // Try session storage as fallback
           chrome.runtime.sendMessage({ type: 'GET_LAST_ANALYSIS' }, (data) => {
-            if (data) renderDashboard(data);
+            if (data) {
+              renderDashboard(data);
+            } else if (retryCount < 3) {
+              // Content script may still be loading — retry after a delay
+              setTimeout(() => loadAnalysis(retryCount + 1), 1500);
+            }
           });
         } else {
           renderDashboard(response);
