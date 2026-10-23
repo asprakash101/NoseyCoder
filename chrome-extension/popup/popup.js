@@ -39,9 +39,19 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAuthStatus();
 
   document.getElementById('btn-login').addEventListener('click', () => {
+    const btn = document.getElementById('btn-login');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Connecting...';
+
     chrome.runtime.sendMessage({ type: 'LOGIN' }, (res) => {
+      btn.disabled = false;
+      btn.textContent = originalText;
+
       if (res && res.success) {
         showAuthState(res.user);
+      } else if (res && res.error) {
+        alert(`GitHub Login failed: ${res.error}`);
       }
     });
   });
@@ -52,14 +62,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ─── Token ───
+  // ─── Token (Saved with AES-GCM encryption in background worker) ───
   document.getElementById('btn-save-token').addEventListener('click', () => {
-    const token = document.getElementById('token-input').value.trim();
+    const tokenInput = document.getElementById('token-input');
+    const token = tokenInput.value.trim();
     if (!token) return;
-    chrome.storage.local.set({ github_token: token }, () => {
+
+    chrome.runtime.sendMessage({ type: 'SAVE_MANUAL_TOKEN', token }, (res) => {
       const status = document.getElementById('token-status');
-      status.textContent = 'Token saved securely';
-      status.style.color = '#3fb950';
+      if (res && res.success) {
+        status.textContent = 'Token encrypted & saved securely';
+        status.style.color = '#3fb950';
+        tokenInput.value = '';
+        if (res.user) showAuthState(res.user);
+      } else {
+        status.textContent = res?.error || 'Failed to save token';
+        status.style.color = '#f85149';
+      }
       setTimeout(() => { status.textContent = ''; }, 3000);
     });
   });

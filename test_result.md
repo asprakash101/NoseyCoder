@@ -101,3 +101,151 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Static code analysis Chrome extension + web demo for GitHub file pages"
+
+backend:
+  - task: "Health endpoint (/api/health)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Verified with pytest. Returns 200 and status ok."
+
+  - task: "Analyze endpoint (/api/analyze) - JavaScript"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Verified with pytest. Accepts JS code, returns analysis with functions, complexity, halstead, linter issues."
+
+  - task: "Analyze endpoint (/api/analyze) - Python"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Verified with pytest. Accepts Python code, returns analysis with functions, complexity, halstead."
+
+  - task: "History endpoint (/api/history)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Verified with pytest. Returns list of past analysis records from MongoDB."
+
+  - task: "GitHub OAuth callback (/api/auth/github/callback)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Exchanges OAuth code for GitHub access token with client_secret. Verified with pytest."
+
+  - task: "Analysis engine - detect_language()"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Verified with 14 pytest unit tests covering all extensions and edge cases."
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Maps file extensions to language names. Pytest unit tests created."
+
+  - task: "Analysis engine - compute_cyclomatic_complexity()"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Regex-based CC calculation for JS and Python. Pytest unit tests created."
+
+  - task: "Analysis engine - compute_halstead()"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Halstead metrics computation. Pytest unit tests created."
+
+  - task: "Analysis engine - compute_maintainability_index()"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "MI calculation from halstead volume, CC, and LOC. Pytest unit tests created."
+
+frontend:
+  - task: "Landing page"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "React landing page with analyzer demo. Not modified in P0."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.2"
+  test_sequence: 3
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Backend Error Handling & Edge Cases"
+    - "Cleaned requirements.txt"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "Completed P1 Task 6 (Error Handling, JS control keyword filtering, 1MB payload limit, Mongo resiliency) and Task 7 (requirements.txt pruned from 28 to 15 dependencies). 101 tests passing."

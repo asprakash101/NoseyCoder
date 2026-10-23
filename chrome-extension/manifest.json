@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
   "name": "NoseyCoder",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAixtPOdne2U1fWJhq86RuC08qSNwbd1uC7T0AJi1xdc6ck6VVvoM7JbXdycVGrTWbI37mIASOqBrNrTlUwhfiVZ2wT3Ak3udJH1nBLpx50Ii9AVfniZtq/06h1a7SaLK/1Wr3g9YsCqjofC4Clyspq/cUgCGydjFRNvxPPrmw3h5RMRZtLM6pLn7xU8RCZsiwweyZFHGIBmoueY49E2W4rrE+IewOhlprEc34zd5msQ71IutyJdck6CosTXvsBZdSjds9kJTqBbdSFfGUpLSZ34cPmE1rsGcpbUO9uTxvLB0snORHSX/1H3730IBpE2Y+KndWlQke/5Rj9oABQAAXwQIDAQAB",
   "version": "1.0.0",
   "description": "NoseyCoder — GitHub On-Page Complexity & Maintainability Analyzer. Cyclomatic Complexity, Halstead Metrics, Heatmaps, Linter & Refactoring Suggestions",
   "permissions": [

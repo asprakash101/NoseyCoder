@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """
-CodeScope Backend API Test Suite
+NoseyCoder Backend API Integration Test Suite (standalone script)
 Tests all endpoints: /api/analyze, /api/health, /api/history
 Validates JavaScript and Python code analysis functionality
+
+This is a manual integration test — run it against a live server:
+    python tests/test_backend_integration.py
+
+It is NOT collected by pytest (no test_ functions at module level).
 """
 
 import requests
@@ -10,11 +15,12 @@ import json
 import sys
 from datetime import datetime
 
-# Use the public URL for testing
-BACKEND_URL = "https://github-metrics-hub.preview.emergentagent.com"
+# Use localhost for testing — start the backend with `uvicorn server:app`
+BACKEND_URL = "http://localhost:8001"
 API_BASE = f"{BACKEND_URL}/api"
 
-class CodeScopeAPITester:
+
+class NoseyCoderAPITester:
     def __init__(self):
         self.tests_run = 0
         self.tests_passed = 0
@@ -25,12 +31,12 @@ class CodeScopeAPITester:
         self.tests_run += 1
         if success:
             self.tests_passed += 1
-        
+
         status = "✅ PASS" if success else "❌ FAIL"
         print(f"\n{status} - {name}")
         if details:
             print(f"   {details}")
-        
+
         self.results.append({
             "name": name,
             "success": success,
@@ -41,7 +47,7 @@ class CodeScopeAPITester:
         """Test /api/health endpoint"""
         try:
             response = requests.get(f"{API_BASE}/health", timeout=10)
-            
+
             if response.status_code == 200:
                 data = response.json()
                 if "status" in data and data["status"] == "ok":
@@ -53,7 +59,7 @@ class CodeScopeAPITester:
             else:
                 self.log_test("Health endpoint", False, f"HTTP {response.status_code}")
                 return False
-                
+
         except Exception as e:
             self.log_test("Health endpoint", False, f"Connection error: {str(e)}")
             return False
@@ -62,10 +68,10 @@ class CodeScopeAPITester:
         """Test JavaScript code analysis via /api/analyze"""
         js_code = '''function processOrder(items, user, config, discountRules) {
     if (!items || items.length === 0) return { error: "No items" };
-    
+
     let total = 0;
     let discountApplied = false;
-    
+
     for (const item of items) {
         if (item.price > 100 && user.isPremium) {
             if (discountRules.premiumDiscount > 0) {
@@ -99,53 +105,53 @@ function validateItem(item) {
                 "code": js_code,
                 "filename": "test.js"
             }
-            
-            response = requests.post(f"{API_BASE}/analyze", 
-                                   json=payload,
-                                   headers={"Content-Type": "application/json"},
-                                   timeout=15)
-            
+
+            response = requests.post(f"{API_BASE}/analyze",
+                                     json=payload,
+                                     headers={"Content-Type": "application/json"},
+                                     timeout=15)
+
             if response.status_code == 200:
                 data = response.json()
-                
+
                 # Validate response structure
                 required_fields = ['language', 'filename', 'summary', 'functions', 'linterIssues', 'refactorSuggestions', 'heatmap']
                 missing_fields = [field for field in required_fields if field not in data]
-                
+
                 if missing_fields:
                     self.log_test("JavaScript analysis", False, f"Missing fields: {missing_fields}")
                     return False
-                
+
                 # Check if it correctly identified JavaScript
                 if data.get('language') != 'javascript':
                     self.log_test("JavaScript analysis", False, f"Language detection failed: {data.get('language')}")
                     return False
-                
+
                 # Check summary metrics
                 summary = data.get('summary', {})
                 if summary.get('functionCount', 0) < 2:
                     self.log_test("JavaScript analysis", False, f"Function detection failed: {summary.get('functionCount')} functions found")
                     return False
-                
+
                 # Check if functions were extracted
                 functions = data.get('functions', [])
                 if len(functions) < 2:
                     self.log_test("JavaScript analysis", False, f"Function extraction failed: {len(functions)} functions found")
                     return False
-                
+
                 # Check complexity calculation
                 if summary.get('cyclomaticComplexity', 0) <= 1:
                     self.log_test("JavaScript analysis", False, f"Complexity calculation failed: CC={summary.get('cyclomaticComplexity')}")
                     return False
-                
-                self.log_test("JavaScript analysis", True, 
-                             f"Language: {data['language']}, Functions: {len(functions)}, CC: {summary.get('cyclomaticComplexity')}, MI: {summary.get('maintainabilityIndex')}")
+
+                self.log_test("JavaScript analysis", True,
+                              f"Language: {data['language']}, Functions: {len(functions)}, CC: {summary.get('cyclomaticComplexity')}, MI: {summary.get('maintainabilityIndex')}")
                 return data
-                
+
             else:
                 self.log_test("JavaScript analysis", False, f"HTTP {response.status_code}: {response.text}")
                 return False
-                
+
         except Exception as e:
             self.log_test("JavaScript analysis", False, f"Request error: {str(e)}")
             return False
@@ -156,12 +162,12 @@ function validateItem(item) {
     """Process raw data through a configurable pipeline."""
     results = []
     errors = []
-    
+
     for record in raw_data:
         if not record or not isinstance(record, dict):
             errors.append({"error": "Invalid record", "data": record})
             continue
-            
+
         # Validate
         is_valid = True
         for validator in validators:
@@ -176,10 +182,10 @@ function validateItem(item) {
                     is_valid = False
                 elif record.get(validator.field, 0) > validator.max_val:
                     is_valid = False
-        
+
         if not is_valid:
             continue
-            
+
         # Transform
         for transformer in transformers:
             if transformer.condition and not transformer.condition(record):
@@ -191,9 +197,9 @@ function validateItem(item) {
                     raise
                 else:
                     errors.append({"error": str(e), "record": record.get("id")})
-                    
+
         results.append(record)
-    
+
     return {"results": results, "errors": errors, "count": len(results)}
 
 def validate_config(config):
@@ -208,40 +214,40 @@ def validate_config(config):
                 "code": python_code,
                 "filename": "test.py"
             }
-            
+
             response = requests.post(f"{API_BASE}/analyze",
-                                   json=payload,
-                                   headers={"Content-Type": "application/json"},
-                                   timeout=15)
-            
+                                     json=payload,
+                                     headers={"Content-Type": "application/json"},
+                                     timeout=15)
+
             if response.status_code == 200:
                 data = response.json()
-                
+
                 # Check language detection
                 if data.get('language') != 'python':
                     self.log_test("Python analysis", False, f"Language detection failed: {data.get('language')}")
                     return False
-                
+
                 # Check function extraction
                 functions = data.get('functions', [])
                 if len(functions) < 2:
                     self.log_test("Python analysis", False, f"Function extraction failed: {len(functions)} functions found")
                     return False
-                
+
                 # Check summary
                 summary = data.get('summary', {})
                 if summary.get('functionCount', 0) < 2:
                     self.log_test("Python analysis", False, f"Function count mismatch: {summary.get('functionCount')}")
                     return False
-                
+
                 self.log_test("Python analysis", True,
-                             f"Language: {data['language']}, Functions: {len(functions)}, CC: {summary.get('cyclomaticComplexity')}, MI: {summary.get('maintainabilityIndex')}")
+                              f"Language: {data['language']}, Functions: {len(functions)}, CC: {summary.get('cyclomaticComplexity')}, MI: {summary.get('maintainabilityIndex')}")
                 return data
-                
+
             else:
                 self.log_test("Python analysis", False, f"HTTP {response.status_code}: {response.text}")
                 return False
-                
+
         except Exception as e:
             self.log_test("Python analysis", False, f"Request error: {str(e)}")
             return False
@@ -254,12 +260,12 @@ def validate_config(config):
                 "code": "SELECT * FROM users;",
                 "filename": "query.sql"
             }
-            
+
             response = requests.post(f"{API_BASE}/analyze",
-                                   json=payload,
-                                   headers={"Content-Type": "application/json"},
-                                   timeout=10)
-            
+                                     json=payload,
+                                     headers={"Content-Type": "application/json"},
+                                     timeout=10)
+
             if response.status_code == 200:
                 data = response.json()
                 if 'error' in data and data.get('language') == 'unknown':
@@ -271,7 +277,7 @@ def validate_config(config):
             else:
                 self.log_test("Invalid code handling", False, f"HTTP {response.status_code}")
                 return False
-                
+
         except Exception as e:
             self.log_test("Invalid code handling", False, f"Request error: {str(e)}")
             return False
@@ -280,10 +286,10 @@ def validate_config(config):
         """Test /api/history endpoint"""
         try:
             response = requests.get(f"{API_BASE}/history", timeout=10)
-            
+
             if response.status_code == 200:
                 data = response.json()
-                
+
                 # Should return an array (might be empty initially)
                 if isinstance(data, list):
                     self.log_test("History endpoint", True, f"Returned {len(data)} analysis records")
@@ -294,7 +300,7 @@ def validate_config(config):
             else:
                 self.log_test("History endpoint", False, f"HTTP {response.status_code}")
                 return False
-                
+
         except Exception as e:
             self.log_test("History endpoint", False, f"Request error: {str(e)}")
             return False
@@ -304,17 +310,17 @@ def validate_config(config):
         try:
             # Test missing required fields
             response = requests.post(f"{API_BASE}/analyze",
-                                   json={"filename": "test.js"},  # Missing 'code' field
-                                   headers={"Content-Type": "application/json"},
-                                   timeout=10)
-            
+                                     json={"filename": "test.js"},  # Missing 'code' field
+                                     headers={"Content-Type": "application/json"},
+                                     timeout=10)
+
             if response.status_code in [400, 422]:  # Should return client error
                 self.log_test("Malformed request handling", True, f"Correctly rejected malformed request: HTTP {response.status_code}")
                 return True
             else:
                 self.log_test("Malformed request handling", False, f"Should have rejected malformed request: HTTP {response.status_code}")
                 return False
-                
+
         except Exception as e:
             self.log_test("Malformed request handling", False, f"Request error: {str(e)}")
             return False
@@ -322,13 +328,13 @@ def validate_config(config):
     def run_all_tests(self):
         """Run complete backend test suite"""
         print("=" * 60)
-        print("🔬 CodeScope Backend API Test Suite")
+        print("🔬 NoseyCoder Backend API Test Suite")
         print("=" * 60)
         print(f"Testing API at: {API_BASE}")
-        
+
         # Run tests in order
         health_ok = self.test_health_endpoint()
-        
+
         if health_ok:
             self.test_javascript_analysis()
             self.test_python_analysis()
@@ -337,7 +343,7 @@ def validate_config(config):
             self.test_malformed_requests()
         else:
             print("\n❌ Health check failed - skipping other tests")
-        
+
         # Print summary
         print("\n" + "=" * 60)
         print("📊 TEST SUMMARY")
@@ -346,7 +352,7 @@ def validate_config(config):
         print(f"Tests passed: {self.tests_passed}")
         print(f"Tests failed: {self.tests_run - self.tests_passed}")
         print(f"Success rate: {(self.tests_passed / self.tests_run * 100):.1f}%")
-        
+
         if self.tests_passed == self.tests_run:
             print("\n🎉 All tests passed!")
             return True
@@ -354,13 +360,15 @@ def validate_config(config):
             print(f"\n⚠️  {self.tests_run - self.tests_passed} test(s) failed")
             return False
 
+
 def main():
     """Main test runner"""
-    tester = CodeScopeAPITester()
+    tester = NoseyCoderAPITester()
     success = tester.run_all_tests()
-    
+
     # Return appropriate exit code
     return 0 if success else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

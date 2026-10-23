@@ -111,16 +111,15 @@
 
   function getLineText(el) {
     if (!el) return '';
-    return (el.innerText || el.textContent || '').replace(/\r/g, '').replace(/\n$/, '');
+    // Use textContent to preserve indentation/spaces. Do NOT use innerText,
+    // which collapses/strips leading whitespace and destroys Python indentation.
+    return (el.textContent || '').replace(/\r/g, '').replace(/\n$/, '');
   }
 
   function getCodeLineElements() {
-    // Returns the DOM elements representing individual code lines for heatmap rendering.
-    // IMPORTANT: .react-code-text appears TWICE per line (line-number + code-content),
-    // so we scope it to the code-content column only to avoid double-counting.
+    // Returns the DOM elements representing individual code lines.
+    // Must include blank lines! Never select .react-code-text directly because blank lines don't have it.
     const selectors = [
-      '.react-code-line-contents .react-code-text',
-      '.react-code-line-contents [data-testid="react-code-text"]',
       '.react-code-line-contents',
       '.react-file-line',
       'td.blob-code',
@@ -136,12 +135,28 @@
     const lineNumberCells = Array.from(document.querySelectorAll('[data-line-number]'));
     if (lineNumberCells.length > 0) {
       const codeCells = lineNumberCells
-        .map(cell => cell.nextElementSibling)
+        .map(cell => cell.nextElementSibling || cell.parentElement)
         .filter(Boolean);
       if (codeCells.length > 0) return codeCells;
     }
 
     return Array.from(document.querySelectorAll('.react-code-line, .blob-code'));
+  }
+
+  function getLineRowElement(lineNum) {
+    // 1. Direct query by data-line-number (exact line match in GitHub DOM)
+    const lineNumEl = document.querySelector(`[data-line-number="${lineNum}"]`);
+    if (lineNumEl) {
+      return lineNumEl.closest('tr') || lineNumEl.closest('.react-code-line') || lineNumEl.nextElementSibling || lineNumEl.parentElement;
+    }
+
+    // 2. Fallback to array index in code lines
+    const codeLines = getCodeLineElements();
+    const line = codeLines[lineNum - 1];
+    if (line) {
+      return line.closest('tr') || line.closest('.react-code-line') || line;
+    }
+    return null;
   }
 
   function getRepoInfo() {
@@ -157,22 +172,18 @@
     removeHeatmap();
     if (!heatmapEnabled || !results || !results.heatmap) return;
 
-    const codeLines = getCodeLineElements();
-    if (codeLines.length === 0) return;
-
     results.heatmap.forEach(region => {
-      for (let i = region.startLine - 1; i < region.endLine && i < codeLines.length; i++) {
-        const line = codeLines[i];
-        if (!line) continue;
+      for (let lineNum = region.startLine; lineNum <= region.endLine; lineNum++) {
+        const bgTarget = getLineRowElement(lineNum);
+        if (!bgTarget) continue;
 
-        // Apply heatmap background to the line or its parent row
-        const bgTarget = line.closest('tr') || line.closest('.react-code-line') || line;
+        // Apply heatmap background to the line row
         const alpha = 0.08 + region.intensity * 0.18;
         bgTarget.style.backgroundColor = hexToRGBA(region.color, alpha);
         bgTarget.classList.add('noseycoder-heatmap-line');
 
         // Add complexity badge on first line of function
-        if (i === region.startLine - 1) {
+        if (lineNum === region.startLine) {
           const badge = document.createElement('span');
           badge.className = 'noseycoder-complexity-badge';
           badge.style.backgroundColor = region.color;
@@ -180,7 +191,7 @@
           badge.title = `Cyclomatic Complexity: ${region.complexity} — ${results.functions.find(f => f.name === region.name)?.complexityLevel?.label || ''}`;
 
           // Position badge at rightmost edge, vertically aligned with this code line
-          const rect = line.getBoundingClientRect();
+          const rect = bgTarget.getBoundingClientRect();
           badge.style.top = `${rect.top + window.scrollY + rect.height / 2 - 10}px`;
           badge.dataset.ncLine = String(region.startLine);
 

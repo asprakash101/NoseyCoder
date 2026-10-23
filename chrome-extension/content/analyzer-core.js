@@ -63,6 +63,11 @@ const NoseyCoderAnalyzer = (() => {
     return functions;
   }
 
+  const JS_CONTROL_FLOW = new Set([
+    'if', 'for', 'while', 'switch', 'catch', 'with', 'function',
+    'return', 'typeof', 'instanceof', 'void', 'delete', 'throw', 'new', 'yield', 'await'
+  ]);
+
   function extractJSFunctions(code, lines) {
     const functions = [];
     const patterns = [
@@ -78,6 +83,7 @@ const NoseyCoderAnalyzer = (() => {
       let match;
       while ((match = pattern.exec(code)) !== null) {
         const name = match[1];
+        if (JS_CONTROL_FLOW.has(name) || JS_KEYWORDS.has(name)) continue;
         const params = match[2] ? match[2].split(',').map(p => p.trim()).filter(Boolean) : [];
         const startIndex = match.index;
         const startLine = code.substring(0, startIndex).split('\n').length;
@@ -119,7 +125,7 @@ const NoseyCoderAnalyzer = (() => {
 
   function extractPyFunctions(code, lines) {
     const functions = [];
-    const pattern = /^(\s*)(?:async\s+)?def\s+(\w+)\s*\(([^)]*)\)/gm;
+    const pattern = /^([ \t]*)(?:async\s+)?def\s+(\w+)\s*\(([^)]*)\)/gm;
     let match;
 
     while ((match = pattern.exec(code)) !== null) {
@@ -145,15 +151,17 @@ const NoseyCoderAnalyzer = (() => {
   }
 
   function findPyFunctionEnd(lines, startIdx, baseIndent) {
+    let lastNonBlank = startIdx;
     for (let i = startIdx + 1; i < lines.length; i++) {
       const line = lines[i];
       if (line.trim() === '') continue;
       const currentIndent = line.length - line.trimStart().length;
-      if (currentIndent <= baseIndent && line.trim() !== '') {
-        return i;
+      if (currentIndent <= baseIndent) {
+        return lastNonBlank + 1;
       }
+      lastNonBlank = i;
     }
-    return lines.length;
+    return lastNonBlank + 1;
   }
 
   // ─── Cyclomatic Complexity ───

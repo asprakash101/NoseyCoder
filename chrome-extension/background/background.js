@@ -3,18 +3,50 @@
  * Handles: OAuth, GitHub API, Fork operations, GitHub Actions, token storage, message routing
  */
 
+import { encryptToken, decryptToken } from './crypto-utils.js';
+
+// ─── Constants & Configuration ───
+const GITHUB_CLIENT_ID = 'Iv23liPPAtbri41bKpz2';
+const DEFAULT_BACKEND_URL = 'http://localhost:8001';
+
 // ─── State ───
 let authToken = null;
 let authUser = null;
 const repoCache = new Map();
 
-// ─── Initialize ───
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get(['github_token', 'github_user'], (data) => {
-    if (data.github_token) authToken = data.github_token;
-    if (data.github_user) authUser = data.github_user;
-  });
-});
+// ─── Initialize Auth State ───
+async function initAuth() {
+  try {
+    const data = await chrome.storage.local.get(['github_token_encrypted', 'github_token', 'github_user']);
+
+    if (data.github_token_encrypted) {
+      authToken = await decryptToken(data.github_token_encrypted);
+    } else if (data.github_token) {
+      // Migrate legacy plaintext token to encrypted storage
+      authToken = data.github_token;
+      const encrypted = await encryptToken(authToken);
+      await chrome.storage.local.set({ github_token_encrypted: encrypted });
+      await chrome.storage.local.remove(['github_token']);
+    }
+
+    if (authToken) {
+      await chrome.storage.session.set({ activeToken: authToken });
+      if (data.github_user) {
+        authUser = data.github_user;
+      } else {
+        authUser = await fetchGitHubUser(authToken);
+        if (authUser) {
+          await chrome.storage.local.set({ github_user: authUser });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[NoseyCoder] Failed to initialize auth state:', err);
+  }
+}
+
+initAuth();
+chrome.runtime.onInstalled.addListener(initAuth);
 
 // ─── Message Handler ───
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -29,6 +61,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'GET_AUTH_STATUS':
       sendResponse({ authenticated: !!authToken, user: authUser });
+      return true;
+
+    case 'SAVE_MANUAL_TOKEN':
+      handleSaveManualToken(message.token, sendResponse);
       return true;
 
     case 'FORK_REPO':
@@ -59,39 +95,114 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// ─── OAuth (Mocked for now) ───
+// ─── OAuth 2.0 Flow ───
 async function handleLogin(sendResponse) {
-  // MOCK: In production, this would use chrome.identity.launchWebAuthFlow
-  // with GitHub's OAuth 2.0 Authorization Code Flow
-  //
-  // Real flow:
-  // 1. chrome.identity.launchWebAuthFlow({
-  //      url: `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=public_repo,workflow`,
-  //      interactive: true
-  //    })
-  // 2. Exchange code for token at GitHub's token endpoint
-  // 3. Store encrypted token
-
   try {
-    // For development: simulate successful auth with a provided token
-    // Users can set their own token via the popup settings
-    const stored = await chrome.storage.local.get(['github_token']);
+    const settings = await chrome.storage.local.get(['backend_url', 'github_client_id']);
+    const backendUrl = settings.backend_url || DEFAULT_BACKEND_URL;
+    const clientId = settings.github_client_id || GITHUB_CLIENT_ID;
 
-    if (stored.github_token) {
-      authToken = stored.github_token;
-      const user = await fetchGitHubUser(authToken);
-      if (user) {
-        authUser = user;
-        await chrome.storage.local.set({ github_user: user });
-        sendResponse({ success: true, user });
-        return;
-      }
+    // Use chrome.identity to get redirect URL (e.g., https://<ext_id>.chromiumapp.org/)
+    const redirectUri = chrome.identity.getRedirectURL();
+
+    const authUrl = `https://github.com/login/oauth/authorize` +
+      `?client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${encodeURIComponent('public_repo,workflow,read:user')}` +
+      `&prompt=consent`;
+
+    console.log('[NoseyCoder] Initiating GitHub OAuth flow with redirect URI:', redirectUri);
+
+    const redirectResult = await chrome.identity.launchWebAuthFlow({
+      url: authUrl,
+      interactive: true
+    });
+
+    if (chrome.runtime.lastError || !redirectResult) {
+      const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : 'Login window closed';
+      sendResponse({ success: false, error: err });
+      return;
     }
 
-    // Mock login response for demo
-    authUser = { login: 'noseycoder-user', avatar_url: '', name: 'NoseyCoder User' };
-    await chrome.storage.local.set({ github_user: authUser });
-    sendResponse({ success: true, user: authUser, mocked: true });
+    const urlObj = new URL(redirectResult);
+    const code = urlObj.searchParams.get('code');
+    const oauthError = urlObj.searchParams.get('error_description') || urlObj.searchParams.get('error');
+
+    if (oauthError) {
+      sendResponse({ success: false, error: oauthError });
+      return;
+    }
+
+    if (!code) {
+      sendResponse({ success: false, error: 'No authorization code returned by GitHub.' });
+      return;
+    }
+
+    // Exchange auth code for token via backend
+    const tokenRes = await fetch(`${backendUrl}/api/auth/github/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, redirect_uri: redirectUri })
+    });
+
+    if (!tokenRes.ok) {
+      const errData = await tokenRes.json().catch(() => ({}));
+      sendResponse({ success: false, error: errData.detail || `Token exchange failed (HTTP ${tokenRes.status})` });
+      return;
+    }
+
+    const tokenData = await tokenRes.json();
+    const token = tokenData.access_token;
+    if (!token) {
+      sendResponse({ success: false, error: 'Access token missing in GitHub response.' });
+      return;
+    }
+
+    authToken = token;
+
+    // Encrypt token before persisting
+    const encrypted = await encryptToken(token);
+    await chrome.storage.local.set({ github_token_encrypted: encrypted });
+    await chrome.storage.local.remove(['github_token']);
+    await chrome.storage.session.set({ activeToken: token });
+
+    // Fetch GitHub user profile
+    const user = await fetchGitHubUser(token);
+    if (user) {
+      authUser = user;
+      await chrome.storage.local.set({ github_user: user });
+      sendResponse({ success: true, user });
+    } else {
+      sendResponse({ success: true, user: { login: 'authenticated_user' } });
+    }
+  } catch (err) {
+    console.error('[NoseyCoder] OAuth Login error:', err);
+    sendResponse({ success: false, error: err.message || 'OAuth authentication failed.' });
+  }
+}
+
+// ─── Manual PAT Save (with encryption) ───
+async function handleSaveManualToken(token, sendResponse) {
+  try {
+    if (!token) {
+      sendResponse({ success: false, error: 'No token provided' });
+      return;
+    }
+
+    authToken = token;
+    const encrypted = await encryptToken(token);
+    await chrome.storage.local.set({ github_token_encrypted: encrypted });
+    await chrome.storage.local.remove(['github_token']);
+    await chrome.storage.session.set({ activeToken: token });
+
+    const user = await fetchGitHubUser(token);
+    if (user) {
+      authUser = user;
+      await chrome.storage.local.set({ github_user: user });
+      sendResponse({ success: true, user });
+    } else {
+      sendResponse({ success: true });
+    }
   } catch (err) {
     sendResponse({ success: false, error: err.message });
   }
@@ -100,7 +211,8 @@ async function handleLogin(sendResponse) {
 async function handleLogout(sendResponse) {
   authToken = null;
   authUser = null;
-  await chrome.storage.local.remove(['github_token', 'github_user']);
+  await chrome.storage.local.remove(['github_token', 'github_token_encrypted', 'github_user']);
+  await chrome.storage.session.remove(['activeToken']);
   sendResponse({ success: true });
 }
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -11,18 +11,22 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
+import httpx
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'noseycoder')]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 # ─── Models ───
+class OAuthCallbackRequest(BaseModel):
+    code: str
+    redirect_uri: Optional[str] = None
 class AnalyzeRequest(BaseModel):
     code: str
     filename: str = "untitled.js"
@@ -259,6 +263,11 @@ def compute_max_nesting(code: str, language: str) -> int:
             max_depth = max(max_depth, rel)
     return max_depth
 
+JS_CONTROL_FLOW = {
+    'if', 'for', 'while', 'switch', 'catch', 'with', 'function',
+    'return', 'typeof', 'instanceof', 'void', 'delete', 'throw', 'new', 'yield', 'await'
+}
+
 def extract_js_functions(code: str, lines: list) -> list:
     functions = []
     found = set()
@@ -270,6 +279,8 @@ def extract_js_functions(code: str, lines: list) -> list:
     for pat in patterns:
         for m in re.finditer(pat, code):
             name = m.group(1)
+            if name in JS_CONTROL_FLOW or name in JS_KEYWORDS:
+                continue
             params_str = m.group(2) if m.lastindex >= 2 else ''
             params = [p.strip() for p in params_str.split(',') if p.strip()] if params_str else []
             start_line = code[:m.start()].count('\n') + 1
@@ -297,7 +308,7 @@ def find_js_function_end(lines: list, start_idx: int) -> int:
 
 def extract_py_functions(code: str, lines: list) -> list:
     functions = []
-    for m in re.finditer(r'^(\s*)(?:async\s+)?def\s+(\w+)\s*\(([^)]*)\)', code, re.MULTILINE):
+    for m in re.finditer(r'^([ \t]*)(?:async\s+)?def\s+(\w+)\s*\(([^)]*)\)', code, re.MULTILINE):
         indent = len(m.group(1))
         name = m.group(2)
         params_str = m.group(3)
@@ -314,13 +325,16 @@ def extract_py_functions(code: str, lines: list) -> list:
     return functions
 
 def find_py_function_end(lines: list, start_idx: int, base_indent: int) -> int:
+    last_non_blank = start_idx
     for i in range(start_idx + 1, len(lines)):
         line = lines[i]
-        if not line.strip(): continue
+        if not line.strip():
+            continue
         current_indent = len(line) - len(line.lstrip())
-        if current_indent <= base_indent and line.strip():
-            return i
-    return len(lines)
+        if current_indent <= base_indent:
+            return last_non_blank + 1
+        last_non_blank = i
+    return last_non_blank + 1
 
 def get_complexity_level(cc: int) -> dict:
     if cc <= 5: return {'label': 'Low', 'color': '#3fb950', 'level': 0}
@@ -335,67 +349,77 @@ def get_maintainability_level(mi: float) -> dict:
     if mi >= 20: return {'label': 'Poor', 'color': '#f85149', 'level': 3}
     return {'label': 'Critical', 'color': '#da3633', 'level': 4}
 
+MAX_CODE_SIZE_BYTES = 1_000_000  # 1 MB maximum payload limit to prevent DoS
+
 def analyze_code(code: str, filename: str) -> dict:
     language = detect_language(filename)
     if language == 'unknown':
         return {'error': 'Unsupported language', 'language': 'unknown'}
 
-    lines = code.split('\n')
-    loc = len(lines)
-    sloc = len([l for l in lines if l.strip() and not is_comment(l, language)])
-    blank_lines = len([l for l in lines if not l.strip()])
-    comment_lines = len([l for l in lines if is_comment(l, language)])
+    try:
+        lines = code.split('\n')
+        loc = len(lines)
+        sloc = len([l for l in lines if l.strip() and not is_comment(l, language)])
+        blank_lines = len([l for l in lines if not l.strip()])
+        comment_lines = len([l for l in lines if is_comment(l, language)])
 
-    if language in ('javascript', 'typescript'):
-        functions = extract_js_functions(code, lines)
-    else:
-        functions = extract_py_functions(code, lines)
+        if language in ('javascript', 'typescript'):
+            functions = extract_js_functions(code, lines)
+        else:
+            functions = extract_py_functions(code, lines)
 
-    halstead = compute_halstead(code, language)
-    file_cc = compute_cyclomatic_complexity(code, language)
-    mi = compute_maintainability_index(halstead['volume'], file_cc, loc)
+        halstead = compute_halstead(code, language)
+        file_cc = compute_cyclomatic_complexity(code, language)
+        mi = compute_maintainability_index(halstead['volume'], file_cc, loc)
 
-    function_metrics = []
-    for fn in functions:
-        fn_cc = compute_cyclomatic_complexity(fn['body'], language)
-        fn_halstead = compute_halstead(fn['body'], language)
-        fn_mi = compute_maintainability_index(fn_halstead['volume'], fn_cc, fn['loc'])
-        fn_nesting = compute_max_nesting(fn['body'], language)
-        function_metrics.append({
-            'name': fn['name'], 'startLine': fn['startLine'], 'endLine': fn['endLine'],
-            'loc': fn['loc'], 'params': fn['params'], 'paramCount': len(fn['params']),
-            'cyclomaticComplexity': fn_cc, 'complexityLevel': get_complexity_level(fn_cc),
-            'halstead': fn_halstead, 'maintainabilityIndex': fn_mi,
-            'maintainabilityLevel': get_maintainability_level(fn_mi),
-            'maxNestingDepth': fn_nesting, 'heatIntensity': 0
-        })
+        function_metrics = []
+        for fn in functions:
+            fn_cc = compute_cyclomatic_complexity(fn['body'], language)
+            fn_halstead = compute_halstead(fn['body'], language)
+            fn_mi = compute_maintainability_index(fn_halstead['volume'], fn_cc, fn['loc'])
+            fn_nesting = compute_max_nesting(fn['body'], language)
+            function_metrics.append({
+                'name': fn['name'], 'startLine': fn['startLine'], 'endLine': fn['endLine'],
+                'loc': fn['loc'], 'params': fn['params'], 'paramCount': len(fn['params']),
+                'cyclomaticComplexity': fn_cc, 'complexityLevel': get_complexity_level(fn_cc),
+                'halstead': fn_halstead, 'maintainabilityIndex': fn_mi,
+                'maintainabilityLevel': get_maintainability_level(fn_mi),
+                'maxNestingDepth': fn_nesting, 'heatIntensity': 0
+            })
 
-    max_cc = max((f['cyclomaticComplexity'] for f in function_metrics), default=1)
-    if max_cc == 0: max_cc = 1
-    for fm in function_metrics:
-        fm['heatIntensity'] = fm['cyclomaticComplexity'] / max_cc
+        max_cc = max((f['cyclomaticComplexity'] for f in function_metrics), default=1)
+        if max_cc == 0: max_cc = 1
+        for fm in function_metrics:
+            fm['heatIntensity'] = fm['cyclomaticComplexity'] / max_cc
 
-    linter_issues = run_linter(functions, code, language)
-    refactor_suggestions = generate_refactor_suggestions(functions, language)
+        linter_issues = run_linter(functions, code, language)
+        refactor_suggestions = generate_refactor_suggestions(functions, language)
 
-    return {
-        'language': language, 'filename': filename,
-        'summary': {
-            'loc': loc, 'sloc': sloc, 'blankLines': blank_lines,
-            'commentLines': comment_lines, 'functionCount': len(functions),
-            'cyclomaticComplexity': file_cc, 'complexityLevel': get_complexity_level(file_cc),
-            'maintainabilityIndex': mi, 'maintainabilityLevel': get_maintainability_level(mi),
-            'halstead': halstead
-        },
-        'functions': function_metrics,
-        'linterIssues': linter_issues,
-        'refactorSuggestions': refactor_suggestions,
-        'heatmap': [{
-            'name': fm['name'], 'startLine': fm['startLine'], 'endLine': fm['endLine'],
-            'intensity': fm['heatIntensity'], 'complexity': fm['cyclomaticComplexity'],
-            'color': fm['complexityLevel']['color']
-        } for fm in function_metrics]
-    }
+        return {
+            'language': language, 'filename': filename,
+            'summary': {
+                'loc': loc, 'sloc': sloc, 'blankLines': blank_lines,
+                'commentLines': comment_lines, 'functionCount': len(functions),
+                'cyclomaticComplexity': file_cc, 'complexityLevel': get_complexity_level(file_cc),
+                'maintainabilityIndex': mi, 'maintainabilityLevel': get_maintainability_level(mi),
+                'halstead': halstead
+            },
+            'functions': function_metrics,
+            'linterIssues': linter_issues,
+            'refactorSuggestions': refactor_suggestions,
+            'heatmap': [{
+                'name': fm['name'], 'startLine': fm['startLine'], 'endLine': fm['endLine'],
+                'intensity': fm['heatIntensity'], 'complexity': fm['cyclomaticComplexity'],
+                'color': fm['complexityLevel']['color']
+            } for fm in function_metrics]
+        }
+    except Exception as e:
+        logger.error(f"Error analyzing code for {filename}: {e}", exc_info=True)
+        return {
+            'error': f"Failed to analyze code: {str(e)}",
+            'language': language,
+            'filename': filename
+        }
 
 def run_linter(functions: list, code: str, language: str) -> list:
     issues = []
@@ -471,33 +495,110 @@ async def root():
 
 @api_router.post("/analyze")
 async def analyze_endpoint(req: AnalyzeRequest):
+    # Input size validation (prevent DoS with huge files)
+    if len(req.code.encode('utf-8')) > MAX_CODE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Code size exceeds maximum limit of {MAX_CODE_SIZE_BYTES // 1_000_000}MB."
+        )
+
     result = analyze_code(req.code, req.filename)
 
-    # Store analysis record
+    # Store analysis record safely without crashing if MongoDB is unreachable
     if 'error' not in result:
-        record = {
-            'id': str(uuid.uuid4()),
-            'filename': result['filename'],
-            'language': result['language'],
-            'loc': result['summary']['loc'],
-            'complexity': result['summary']['cyclomaticComplexity'],
-            'maintainability': result['summary']['maintainabilityIndex'],
-            'functionCount': result['summary']['functionCount'],
-            'issueCount': len(result['linterIssues']),
-            'timestamp': datetime.now(timezone.utc).isoformat()
-        }
-        await db.analysis_history.insert_one(record)
+        try:
+            record = {
+                'id': str(uuid.uuid4()),
+                'filename': result['filename'],
+                'language': result['language'],
+                'loc': result['summary']['loc'],
+                'complexity': result['summary']['cyclomaticComplexity'],
+                'maintainability': result['summary']['maintainabilityIndex'],
+                'functionCount': result['summary']['functionCount'],
+                'issueCount': len(result['linterIssues']),
+                'timestamp': datetime.now(timezone.utc).isoformat()
+            }
+            await db.analysis_history.insert_one(record)
+        except Exception as e:
+            logger.warning(f"Failed to record analysis to MongoDB: {e}")
 
     return result
 
 @api_router.get("/history")
 async def get_history():
-    records = await db.analysis_history.find({}, {"_id": 0}).sort("timestamp", -1).to_list(50)
-    return records
+    try:
+        records = await db.analysis_history.find({}, {"_id": 0}).sort("timestamp", -1).to_list(50)
+        return records
+    except Exception as e:
+        logger.warning(f"Failed to fetch analysis history from MongoDB: {e}")
+        return []
 
 @api_router.get("/health")
 async def health():
     return {"status": "ok", "service": "NoseyCoder API"}
+
+# ─── GitHub OAuth Endpoints ───
+@api_router.get("/auth/github/config")
+async def get_github_auth_config():
+    """Return public OAuth configuration (client_id)."""
+    return {
+        "client_id": os.environ.get("GITHUB_CLIENT_ID", "")
+    }
+
+@api_router.post("/auth/github/callback")
+async def github_oauth_callback(payload: OAuthCallbackRequest):
+    """Exchange authorization code for a GitHub access token."""
+    client_id = os.environ.get("GITHUB_CLIENT_ID")
+    client_secret = os.environ.get("GITHUB_CLIENT_SECRET")
+
+    if not client_id or not client_secret:
+        raise HTTPException(
+            status_code=500,
+            detail="GitHub OAuth credentials not configured on the server."
+        )
+
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "code": payload.code,
+    }
+    if payload.redirect_uri:
+        data["redirect_uri"] = payload.redirect_uri
+
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.post(
+                "https://github.com/login/oauth/access_token",
+                json=data,
+                headers=headers,
+                timeout=15.0
+            )
+            token_data = response.json()
+    except Exception as e:
+        logger.error(f"Error communicating with GitHub token endpoint: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to communicate with GitHub: {str(e)}"
+        )
+
+    if "error" in token_data:
+        logger.warning(f"GitHub OAuth returned error: {token_data}")
+        raise HTTPException(
+            status_code=400,
+            detail=token_data.get("error_description", token_data.get("error"))
+        )
+
+    return token_data
+
+@api_router.get("/auth/github/callback")
+async def github_oauth_callback_get(code: str = Query(...)):
+    """Convenience GET endpoint for browser-based redirect flows."""
+    return await github_oauth_callback(OAuthCallbackRequest(code=code))
 
 # Include router
 app.include_router(api_router)
